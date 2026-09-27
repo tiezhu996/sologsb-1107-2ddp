@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Mould, MouldInput, MouldStateValue } from '../types/mould'
 import { db, plain } from '../utils/db'
+import { calculateMeshDensity } from '../utils/stripe'
 
 interface MouldStore {
   moulds: Mould[]
@@ -10,6 +11,7 @@ interface MouldStore {
   loadMoulds: () => Promise<void>
   addMould: (input: MouldInput) => Promise<Mould | null>
   setMouldState: (id: number, state: MouldStateValue) => Promise<void>
+  updateStripeGap: (id: number, stripeGap: number) => Promise<Mould | null>
 }
 
 export const useMouldStore = create<MouldStore>((set, get) => ({
@@ -49,6 +51,23 @@ export const useMouldStore = create<MouldStore>((set, get) => ({
       }))
     } catch {
       set({ error: '纸帘状态更新失败' })
+    }
+  },
+  updateStripeGap: async (id, stripeGap) => {
+    try {
+      const mould = get().moulds.find((item) => item.id === id) ?? (await db.moulds.get(id))
+      if (!mould) throw new Error('mould missing')
+      const meshDensity = calculateMeshDensity(mould.wireDiameter, stripeGap)
+      await db.moulds.update(id, { stripeGap, meshDensity })
+      const updated: Mould = { ...mould, stripeGap, meshDensity }
+      set((state) => ({
+        moulds: state.moulds.map((item) => (item.id === id ? updated : item)),
+        error: null,
+      }))
+      return updated
+    } catch {
+      set({ error: '帘纹间距更新失败' })
+      return null
     }
   },
 }))

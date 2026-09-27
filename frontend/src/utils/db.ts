@@ -44,14 +44,14 @@ const gap2 = 0.85
 const gap3 = 1.0
 const gap4 = 0.72
 const seedRuns: SheetRun[] = [
-  { id: 1, runNo: 'CB-260701', mouldId: 1, batchId: 1, runDate: currentWeekDate(0), operator: '罗青禾', stripeDirection: '竖帘纹', dipCount: 2, stackHeight: 42, dryMethod: '火墙', grammage: 32, measuredGap: 1.08, deviation: calculateDeviation(1.08, gap1), schemaRev: 2 },
-  { id: 2, runNo: 'CB-260702', mouldId: 2, batchId: 2, runDate: currentWeekDate(1), operator: '汪知远', stripeDirection: '竖帘纹', dipCount: 1, stackHeight: 36, dryMethod: '火墙', grammage: 29, measuredGap: 0.84, deviation: calculateDeviation(0.84, gap2), schemaRev: 2 },
-  { id: 3, runNo: 'CB-260703', mouldId: 3, batchId: 3, runDate: currentWeekDate(2), operator: '郭文山', stripeDirection: '横帘纹', dipCount: 2, stackHeight: 48, dryMethod: '日晒', grammage: 41, measuredGap: 1.03, deviation: calculateDeviation(1.03, gap3), schemaRev: 2 },
-  { id: 4, runNo: 'CB-260704', mouldId: 1, batchId: 5, runDate: daysAgo(3), operator: '罗青禾', stripeDirection: '竖帘纹', dipCount: 3, stackHeight: 55, dryMethod: '火墙', grammage: 36, measuredGap: 1.36, deviation: calculateDeviation(1.36, gap1), schemaRev: 2 },
-  { id: 5, runNo: 'CB-260705', mouldId: 2, batchId: 4, runDate: daysAgo(6), operator: '蒋允中', stripeDirection: '竖帘纹', dipCount: 2, stackHeight: 44, dryMethod: '日晒', grammage: 46, measuredGap: 0.82, deviation: calculateDeviation(0.82, gap2), schemaRev: 2 },
-  { id: 6, runNo: 'CB-260706', mouldId: 3, batchId: 2, runDate: daysAgo(10), operator: '汪知远', stripeDirection: '竖帘纹', dipCount: 1, stackHeight: 31, dryMethod: '火墙', grammage: 27, measuredGap: 0.94, deviation: calculateDeviation(0.94, gap3), schemaRev: 2 },
-  { id: 7, runNo: 'CB-260707', mouldId: 4, batchId: 1, runDate: daysAgo(17), operator: '林砚秋', stripeDirection: '横帘纹', dipCount: 2, stackHeight: 39, dryMethod: '日晒', grammage: 34, measuredGap: 1.5, deviation: calculateDeviation(1.5, 1.25), schemaRev: 2 },
-  { id: 8, runNo: 'CB-260708', mouldId: 5, batchId: 3, runDate: daysAgo(24), operator: '郭文山', stripeDirection: '竖帘纹', dipCount: 2, stackHeight: 46, dryMethod: '火墙', grammage: 44, measuredGap: 0.71, deviation: calculateDeviation(0.71, gap4), schemaRev: 2 },
+  { id: 1, runNo: 'CB-260701', mouldId: 1, batchId: 1, runDate: currentWeekDate(0), operator: '罗青禾', stripeDirection: '竖帘纹', dipCount: 2, stackHeight: 42, dryMethod: '火墙', grammage: 32, standardGap: gap1, measuredGap: 1.08, deviation: calculateDeviation(1.08, gap1), schemaRev: 3 },
+  { id: 2, runNo: 'CB-260702', mouldId: 2, batchId: 2, runDate: currentWeekDate(1), operator: '汪知远', stripeDirection: '竖帘纹', dipCount: 1, stackHeight: 36, dryMethod: '火墙', grammage: 29, standardGap: gap2, measuredGap: 0.84, deviation: calculateDeviation(0.84, gap2), schemaRev: 3 },
+  { id: 3, runNo: 'CB-260703', mouldId: 3, batchId: 3, runDate: currentWeekDate(2), operator: '郭文山', stripeDirection: '横帘纹', dipCount: 2, stackHeight: 48, dryMethod: '日晒', grammage: 41, standardGap: gap3, measuredGap: 1.03, deviation: calculateDeviation(1.03, gap3), schemaRev: 3 },
+  { id: 4, runNo: 'CB-260704', mouldId: 1, batchId: 5, runDate: daysAgo(3), operator: '罗青禾', stripeDirection: '竖帘纹', dipCount: 3, stackHeight: 55, dryMethod: '火墙', grammage: 36, standardGap: gap1, measuredGap: 1.36, deviation: calculateDeviation(1.36, gap1), schemaRev: 3 },
+  { id: 5, runNo: 'CB-260705', mouldId: 2, batchId: 4, runDate: daysAgo(6), operator: '蒋允中', stripeDirection: '竖帘纹', dipCount: 2, stackHeight: 44, dryMethod: '日晒', grammage: 46, standardGap: gap2, measuredGap: 0.82, deviation: calculateDeviation(0.82, gap2), schemaRev: 3 },
+  { id: 6, runNo: 'CB-260706', mouldId: 3, batchId: 2, runDate: daysAgo(10), operator: '汪知远', stripeDirection: '竖帘纹', dipCount: 1, stackHeight: 31, dryMethod: '火墙', grammage: 27, standardGap: gap3, measuredGap: 0.94, deviation: calculateDeviation(0.94, gap3), schemaRev: 3 },
+  { id: 7, runNo: 'CB-260707', mouldId: 4, batchId: 1, runDate: daysAgo(17), operator: '林砚秋', stripeDirection: '横帘纹', dipCount: 2, stackHeight: 39, dryMethod: '日晒', grammage: 34, standardGap: 1.25, measuredGap: 1.5, deviation: calculateDeviation(1.5, 1.25), schemaRev: 3 },
+  { id: 8, runNo: 'CB-260708', mouldId: 5, batchId: 3, runDate: daysAgo(24), operator: '郭文山', stripeDirection: '竖帘纹', dipCount: 2, stackHeight: 46, dryMethod: '火墙', grammage: 44, standardGap: gap4, measuredGap: 0.71, deviation: calculateDeviation(0.71, gap4), schemaRev: 3 },
 ]
 
 const seedSamples: PaperSample[] = [
@@ -94,6 +94,17 @@ class GbPaperMillDatabase extends Dexie {
       })
       await transaction.table('paperSamples').toCollection().modify((value: Record<string, unknown>) => {
         value.schemaRev = 2
+      })
+    })
+    this.version(3).upgrade(async (transaction) => {
+      const moulds = (await transaction.table('moulds').toArray()) as Mould[]
+      const gapByMouldId = new Map(moulds.map((mould) => [mould.id, mould.stripeGap]))
+      await transaction.table('sheetRuns').toCollection().modify((value: Record<string, unknown>) => {
+        const measuredGap = Number(value.measuredGap) || 0
+        const standardGap = gapByMouldId.get(Number(value.mouldId)) ?? Number((measuredGap - (Number(value.deviation) || 0)).toFixed(2))
+        value.standardGap = standardGap
+        value.deviation = calculateDeviation(measuredGap, standardGap)
+        value.schemaRev = 3
       })
     })
     this.on('populate', () => this.seed())
