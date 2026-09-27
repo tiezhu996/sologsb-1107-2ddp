@@ -17,6 +17,8 @@ export interface SheetRun {
   dryMethod: DryMethod
   grammage: number
   measuredGap: number
+  /** 登记本槽工序时纸帘的帘纹标准间距（mm），偏差只按该快照计算 */
+  standardGap: number
   deviation: number
   schemaRev?: number
 }

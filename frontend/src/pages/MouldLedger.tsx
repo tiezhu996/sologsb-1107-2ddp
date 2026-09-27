@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Box, Button, Card, CardContent, Chip, Divider, Grid, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, Snackbar, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material'
 import { GrainStripePreview } from '../components/common/GrainStripePreview'
 import { RulerInput } from '../components/common/RulerInput'
 import { useMouldFilter } from '../hooks/useMouldFilter'
 import { useUnitConvert } from '../hooks/useUnitConvert'
 import { useMouldStore } from '../stores/mouldStore'
 import { useRunStore } from '../stores/runStore'
-import { MOULD_STATES, WIRE_MATERIALS, type MouldInput, type MouldStateValue, type WireMaterial } from '../types/mould'
+import { MOULD_STATES, WIRE_MATERIALS, type Mould, type MouldInput, type MouldStateValue, type WireMaterial } from '../types/mould'
 import { calculateMeshDensity } from '../utils/stripe'
 
 const emptyMouldForm: MouldInput = {
@@ -27,11 +27,15 @@ export default function MouldLedger() {
   const loadMoulds = useMouldStore((state) => state.loadMoulds)
   const addMould = useMouldStore((state) => state.addMould)
   const setMouldState = useMouldStore((state) => state.setMouldState)
+  const updateStripeGap = useMouldStore((state) => state.updateStripeGap)
   const runs = useRunStore((state) => state.sheetRuns)
   const loadRuns = useRunStore((state) => state.loadRuns)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<MouldInput>(emptyMouldForm)
   const [submitting, setSubmitting] = useState(false)
+  const [gapDialog, setGapDialog] = useState<{ mould: Mould; gap: number } | null>(null)
+  const [gapSaving, setGapSaving] = useState(false)
+  const [gapNotice, setGapNotice] = useState<string | null>(null)
   const { mmPitchToThreadsPerCm } = useUnitConvert()
   const {
     mouldNo,
@@ -71,6 +75,20 @@ export default function MouldLedger() {
       setForm(emptyMouldForm)
       setShowForm(false)
     }
+  }
+
+  const handleGapSave = async () => {
+    if (!gapDialog) return
+    const { mould, gap } = gapDialog
+    const mouldId = mould.id
+    if (mouldId === undefined || gap <= 0) return
+    const registeredCount = runs.filter((run) => run.mouldId === mouldId).length
+    setGapSaving(true)
+    await updateStripeGap(mouldId, gap)
+    setGapSaving(false)
+    setGapDialog(null)
+    // 改的是纸帘当前标准值：已登记工序的基准快照不动，只影响以后新登记的工序
+    setGapNotice(`${mould.mouldNo} 帘纹间距已改为 ${gap.toFixed(2)} mm，只影响之后新登记的工序；此前 ${registeredCount} 槽已登记工序仍按原基准核算。`)
   }
 
   return (
@@ -227,16 +245,27 @@ export default function MouldLedger() {
                     <Chip size="small" color={mould.state === '在用' ? 'success' : mould.state === '待修补' ? 'warning' : 'default'} label={mould.state} />
                   </TableCell>
                   <TableCell align="right">
-                    <Button
-                      size="small"
-                      variant={mould.state === '待修补' ? 'contained' : 'outlined'}
-                      disabled={mould.state === '退役' || mould.id === undefined}
-                      onClick={() => {
-                        if (mould.id !== undefined) void setMouldState(mould.id, mould.state === '待修补' ? '在用' : '待修补')
-                      }}
-                    >
-                      {mould.state === '待修补' ? '完成修补' : '登记修补'}
-                    </Button>
+                    <Stack direction="row" spacing={1} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        disabled={mould.state === '退役' || mould.id === undefined}
+                        onClick={() => setGapDialog({ mould, gap: mould.stripeGap })}
+                        data-testid={`edit-gap-${mould.id}`}
+                      >
+                        调整间距
+                      </Button>
+                      <Button
+                        size="small"
+                        variant={mould.state === '待修补' ? 'contained' : 'outlined'}
+                        disabled={mould.state === '退役' || mould.id === undefined}
+                        onClick={() => {
+                          if (mould.id !== undefined) void setMouldState(mould.id, mould.state === '待修补' ? '在用' : '待修补')
+                        }}
+                      >
+                        {mould.state === '待修补' ? '完成修补' : '登记修补'}
+                      </Button>
+                    </Stack>
                   </TableCell>
                 </TableRow>
               )
@@ -247,6 +276,44 @@ export default function MouldLedger() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Dialog open={gapDialog !== null} onClose={() => setGapDialog(null)} maxWidth="xs" fullWidth data-testid="dialog-gap">
+        <DialogTitle>调整帘纹间距 · {gapDialog?.mould.mouldNo}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 0.5 }}>
+            <Typography variant="body2" color="text.secondary">
+              修改的是纸帘当前标准间距，网目密度随之重算；已登记工序按各自登记时的基准核算，不受本次调整影响。
+            </Typography>
+            <RulerInput
+              label="新帘纹间距"
+              value={gapDialog?.gap ?? 0}
+              onChange={(value) => setGapDialog((current) => (current ? { ...current, gap: value } : current))}
+              min={0.1}
+              max={5}
+              step={0.01}
+              testId="field-gap"
+              helperText={gapDialog ? `当前 ${gapDialog.mould.stripeGap.toFixed(2)} mm → 新值 ${gapDialog.gap.toFixed(2)} mm，密度约 ${calculateMeshDensity(gapDialog.mould.wireDiameter, gapDialog.gap).toFixed(1)} 根/cm` : undefined}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setGapDialog(null)}>取消</Button>
+          <Button
+            variant="contained"
+            onClick={() => void handleGapSave()}
+            disabled={gapSaving || !gapDialog || gapDialog.gap <= 0 || gapDialog.gap === gapDialog.mould.stripeGap}
+            data-testid="save-gap"
+          >
+            保存间距
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar open={gapNotice !== null} autoHideDuration={6000} onClose={() => setGapNotice(null)}>
+        <Alert severity="info" variant="filled" onClose={() => setGapNotice(null)} data-testid="gap-notice">
+          {gapNotice}
+        </Alert>
+      </Snackbar>
     </Stack>
   )
 }

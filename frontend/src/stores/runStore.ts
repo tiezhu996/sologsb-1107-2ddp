@@ -10,7 +10,7 @@ interface RunStore {
   error: string | null
   loadRuns: () => Promise<void>
   addRun: (input: SheetRunInput) => Promise<SheetRun | null>
-  updateMeasuredGap: (id: number, measuredGap: number, standardGap: number) => Promise<void>
+  updateMeasuredGap: (id: number, measuredGap: number) => Promise<void>
 }
 
 export const useRunStore = create<RunStore>((set, get) => ({
@@ -31,9 +31,10 @@ export const useRunStore = create<RunStore>((set, get) => ({
   addRun: async (input) => {
     set({ error: null })
     try {
-      const payload = plain(input)
+      // 偏差按登记当时的纸帘标准间距固化，不再随纸帘之后的调整而变化
+      const payload = plain({ ...input, deviation: calculateDeviation(input.measuredGap, input.standardGap) })
       const id = Number(await db.sheetRuns.add(payload))
-      const created: SheetRun = { ...payload, id, schemaRev: 2 }
+      const created: SheetRun = { ...payload, id, schemaRev: 3 }
       set((state) => ({ sheetRuns: [created, ...state.sheetRuns] }))
       return created
     } catch {
@@ -41,12 +42,15 @@ export const useRunStore = create<RunStore>((set, get) => ({
       return null
     }
   },
-  updateMeasuredGap: async (id, measuredGap, standardGap) => {
+  updateMeasuredGap: async (id, measuredGap) => {
+    const existing = get().sheetRuns.find((run) => run.id === id)
+    // 复测只换实测值，标准间距沿用本槽登记时的快照
+    const standardGap = existing?.standardGap ?? measuredGap
     const deviation = calculateDeviation(measuredGap, standardGap)
     try {
-      await db.sheetRuns.update(id, { measuredGap, deviation, schemaRev: 2 })
+      await db.sheetRuns.update(id, { measuredGap, standardGap, deviation, schemaRev: 3 })
       set((state) => ({
-        sheetRuns: state.sheetRuns.map((run) => (run.id === id ? { ...run, measuredGap, deviation, schemaRev: 2 } : run)),
+        sheetRuns: state.sheetRuns.map((run) => (run.id === id ? { ...run, measuredGap, standardGap, deviation, schemaRev: 3 } : run)),
         error: null,
       }))
     } catch {

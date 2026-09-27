@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Mould, MouldInput, MouldStateValue } from '../types/mould'
 import { db, plain } from '../utils/db'
+import { calculateMeshDensity } from '../utils/stripe'
 
 interface MouldStore {
   moulds: Mould[]
@@ -10,6 +11,7 @@ interface MouldStore {
   loadMoulds: () => Promise<void>
   addMould: (input: MouldInput) => Promise<Mould | null>
   setMouldState: (id: number, state: MouldStateValue) => Promise<void>
+  updateStripeGap: (id: number, stripeGap: number) => Promise<void>
 }
 
 export const useMouldStore = create<MouldStore>((set, get) => ({
@@ -49,6 +51,21 @@ export const useMouldStore = create<MouldStore>((set, get) => ({
       }))
     } catch {
       set({ error: '纸帘状态更新失败' })
+    }
+  },
+  updateStripeGap: async (id, stripeGap) => {
+    const mould = get().moulds.find((item) => item.id === id)
+    if (!mould) return
+    // 只更新纸帘当前标准间距与网目密度；已登记工序的基准快照保持不动
+    const meshDensity = calculateMeshDensity(mould.wireDiameter, stripeGap)
+    try {
+      await db.moulds.update(id, { stripeGap, meshDensity, schemaRev: 2 })
+      set((state) => ({
+        moulds: state.moulds.map((item) => (item.id === id ? { ...item, stripeGap, meshDensity, schemaRev: 2 } : item)),
+        error: null,
+      }))
+    } catch {
+      set({ error: '帘纹间距更新失败' })
     }
   },
 }))

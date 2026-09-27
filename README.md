@@ -63,6 +63,7 @@ npm run dev
 
 - `version(1)`：建立 `moulds`、`fiberBatches`、`sheetRuns`、`paperSamples` 四张表及编号、日期、状态等索引。
 - `version(2)`：为四张表加入 `schemaRev` 索引，并通过 `upgrade` 将存量记录回填为版本 `2`。
+- `version(3)`：为 `sheetRuns` 增加 `standardGap`（登记时纸帘帘纹标准间距）字段，`upgrade` 按各工序所属纸帘的当前间距回填基准并重算偏差；此后工序偏差只对照本槽固化的标准间距，纸帘再改间距不影响已登记工序，新登记工序取纸帘当前值。
 - 数据库首次创建时通过 `populate` 写入 5 张纸帘、5 个纤维料批、8 槽抄纸工序和 6 个成纸样本。
 - 页面顶部的“导出 JSON”可下载四张表的完整备份。
 

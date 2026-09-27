@@ -25,6 +25,7 @@ const emptyRunForm: SheetRunInput = {
   dryMethod: '火墙',
   grammage: 32,
   measuredGap: 1.1,
+  standardGap: 1.1,
   deviation: 0,
 }
 
@@ -74,7 +75,9 @@ export default function RunBoard() {
     [dateFilter, mouldById, mouldFilter, runs],
   )
   const selectedMould = mouldById.get(form.mouldId) ?? moulds[0]
-  const formDeviation = calculateDeviation(form.measuredGap, selectedMould?.stripeGap ?? form.measuredGap)
+  // 登记时取纸帘当前间距作为本槽标准；提交后该值固化，帘子之后再改也不动本槽
+  const formStandardGap = selectedMould?.stripeGap ?? form.standardGap
+  const formDeviation = calculateDeviation(form.measuredGap, formStandardGap)
   const latestRun = runs[0]
 
   const updateForm = <K extends keyof SheetRunInput,>(key: K, value: SheetRunInput[K]) => {
@@ -84,15 +87,15 @@ export default function RunBoard() {
   const handleMouldChange = (mouldId: number) => {
     setForm((current) => {
       const mould = mouldById.get(mouldId)
-      const standardGap = mould?.stripeGap ?? current.measuredGap
-      return { ...current, mouldId, measuredGap: standardGap, deviation: calculateDeviation(standardGap, standardGap) }
+      const standardGap = mould?.stripeGap ?? current.standardGap
+      return { ...current, mouldId, standardGap, measuredGap: standardGap, deviation: calculateDeviation(standardGap, standardGap) }
     })
   }
 
   const handleSubmit = async () => {
     if (!form.runNo.trim() || !form.operator.trim() || form.measuredGap <= 0 || form.grammage <= 0) return
     setSubmitting(true)
-    const created = await addRun({ ...form, runNo: form.runNo.trim(), operator: form.operator.trim(), deviation: formDeviation })
+    const created = await addRun({ ...form, runNo: form.runNo.trim(), operator: form.operator.trim(), standardGap: formStandardGap, deviation: formDeviation })
     setSubmitting(false)
     if (created) {
       setForm(emptyRunForm)
@@ -152,8 +155,11 @@ export default function RunBoard() {
                 </TextField>
               </Grid>
               <Grid item xs={6} md={2}><TextField fullWidth type="number" label="克重" value={form.grammage} onChange={(event) => updateForm('grammage', Number(event.target.value))} inputProps={{ min: 10, max: 200, step: 1, 'data-testid': 'field-grammage' }} InputProps={{ endAdornment: 'g/m²' }} /></Grid>
+              <Grid item xs={6} md={4}>
+                <RulerInput label="本槽标准间距（登记时）" value={formStandardGap} onChange={() => undefined} disabled testId="field-standardGap" helperText={`取纸帘当前值 ${formStandardGap.toFixed(2)} mm，保存后固化；之后调整纸帘不影响本槽`} />
+              </Grid>
               <Grid item xs={12} md={4}>
-                <RulerInput label="实测帘纹间距" value={form.measuredGap} onChange={(value) => updateForm('measuredGap', value)} min={0.1} max={5} step={0.01} testId="field-measuredGap" helperText={`${getGapConclusion(formDeviation)}，允许偏差 ±0.2 mm`} />
+                <RulerInput label="实测帘纹间距" value={form.measuredGap} onChange={(value) => updateForm('measuredGap', value)} min={0.1} max={5} step={0.01} testId="field-measuredGap" helperText={`对照本槽标准 ${formStandardGap.toFixed(2)} mm：${getGapConclusion(formDeviation)}，允许偏差 ±0.2 mm`} />
               </Grid>
             </Grid>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, mt: 2.5 }}>
@@ -208,13 +214,14 @@ export default function RunBoard() {
       </Grid>
 
       <TableContainer component={Card}>
-        <Table sx={{ minWidth: 1080 }}>
+        <Table sx={{ minWidth: 1180 }}>
           <TableHead>
             <TableRow>
               <TableCell>工序 / 日期</TableCell>
               <TableCell>纸帘与料批</TableCell>
               <TableCell>抄纸参数</TableCell>
               <TableCell align="right">克重</TableCell>
+              <TableCell>标准间距（登记时）</TableCell>
               <TableCell>实测间距与偏差</TableCell>
               <TableCell align="right">保存实测</TableCell>
             </TableRow>
@@ -224,7 +231,9 @@ export default function RunBoard() {
               const mould = mouldById.get(run.mouldId)
               const batch = batchById.get(run.batchId)
               const draftGap = run.id === undefined ? run.measuredGap : draftGaps[run.id] ?? run.measuredGap
-              const draftDeviation = calculateDeviation(draftGap, mould?.stripeGap ?? draftGap)
+              // 偏差只对照本槽登记时固化的标准间距，不读纸帘当前值
+              const runStandardGap = run.standardGap ?? mould?.stripeGap ?? draftGap
+              const draftDeviation = calculateDeviation(draftGap, runStandardGap)
               const exceeded = isGapOutOfTolerance(draftDeviation)
               return (
                 <TableRow key={run.id ?? run.runNo} data-testid="row-run" hover sx={{ bgcolor: exceeded ? '#fff7d9' : undefined }}>
@@ -241,6 +250,10 @@ export default function RunBoard() {
                     <Typography variant="caption" color="text.secondary">叠高 {run.stackHeight} 张 · {run.dryMethod} · 帘框 {cmToMm(mould?.frameW ?? 0)} × {cmToMm(mould?.frameH ?? 0)} mm</Typography>
                   </TableCell>
                   <TableCell align="right">{run.grammage} g/m²</TableCell>
+                  <TableCell>
+                    <Typography data-testid={`run-standardGap-${run.id}`}>{runStandardGap.toFixed(2)} mm</Typography>
+                    <Typography variant="caption" color="text.secondary">登记时纸帘标准值{mould && Math.abs(mould.stripeGap - runStandardGap) > 0.001 ? ` · 帘现值 ${mould.stripeGap.toFixed(2)} mm` : ''}</Typography>
+                  </TableCell>
                   <TableCell sx={{ minWidth: 270 }}>
                     <RulerInput
                       label="帘纹间距"
@@ -252,7 +265,7 @@ export default function RunBoard() {
                       max={5}
                       step={0.01}
                       testId={run.id === undefined ? undefined : `row-measuredGap-${run.id}`}
-                      helperText={<Typography component="span" variant="caption" color={exceeded ? 'warning.dark' : 'text.secondary'}>{exceeded ? '超差：' : '合格：'}{getGapConclusion(draftDeviation)}（{draftDeviation > 0 ? '+' : ''}{draftDeviation.toFixed(2)} mm）</Typography>}
+                      helperText={<Typography component="span" variant="caption" color={exceeded ? 'warning.dark' : 'text.secondary'}>{exceeded ? '超差：' : '合格：'}{getGapConclusion(draftDeviation)}（对照标准 {runStandardGap.toFixed(2)} mm，{draftDeviation > 0 ? '+' : ''}{draftDeviation.toFixed(2)} mm）</Typography>}
                       compact
                     />
                   </TableCell>
@@ -263,7 +276,7 @@ export default function RunBoard() {
                       color={exceeded ? 'warning' : 'primary'}
                       disabled={run.id === undefined || draftGap === run.measuredGap}
                       onClick={() => {
-                        if (run.id !== undefined) void updateMeasuredGap(run.id, draftGap, mould?.stripeGap ?? draftGap)
+                        if (run.id !== undefined) void updateMeasuredGap(run.id, draftGap)
                       }}
                     >
                       {draftGap === run.measuredGap ? '已记录' : '保存实测'}
@@ -273,7 +286,7 @@ export default function RunBoard() {
               )
             })}
             {filteredRuns.length === 0 && (
-              <TableRow><TableCell colSpan={6} align="center" sx={{ py: 5 }}>没有符合日期与帘号条件的工序</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} align="center" sx={{ py: 5 }}>没有符合日期与帘号条件的工序</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
